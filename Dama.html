@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gioco della Dama a Uova</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #e0f7fa, #80deea);
+      margin: 0;
+      padding: 20px;
+    }
+    #auth-container {
+      background-color: white;
+      border-radius: 12px;
+      padding: 20px 30px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      width: 320px;
+    }
+    #auth-container h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 20px;
+      color: #00796b;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 15px;
+      width: 100%;
+      border: none;
+      border-radius: 6px;
+      background-color: #00796b;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #004d40;
+    }
+    #toggleAuth {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+      cursor: pointer;
+    }
+    #user-panel {
+      display: none;
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 10px 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    #board {
+      display: none;
+      grid-template-columns: repeat(8, 80px);
+      grid-template-rows: repeat(8, 80px);
+      border: 2px solid #333;
+    }
+    .cell {
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .white {
+      background-color: #ffffff;
+    }
+    .blue {
+      background-color: #4da6ff;
+    }
+    .highlight {
+      box-shadow: inset 0 0 0 4px yellow;
+    }
+    .piece {
+      width: 50px;
+      height: 70px;
+      background-color: red;
+      border-radius: 50% 50% 45% 45% / 55% 55% 45% 45%;
+      cursor: pointer;
+      box-shadow: 0 0 5px #000;
+      z-index: 2;
+    }
+    .black-piece {
+      background-color: black;
+    }
+    .white-piece {
+      background-color: white;
+      border: 2px solid #000;
+    }
+    .king::after {
+      content: "\265B";
+      color: gold;
+      font-size: 30px;
+      position: absolute;
+    }
+    .victory-message {
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 20px;
+      color: green;
+    }
+      @media (max-width: 768px) {
+      #board {
+        grid-template-columns: repeat(8, 40px);
+        grid-template-rows: repeat(8, 40px);
+      }
+      .cell {
+        width: 40px;
+        height: 40px;
+      }
+      .piece {
+        width: 25px;
+        height: 35px;
+      }
+    }
+</style>
+<audio id="captureSound" src="https://www.soundjay.com/buttons/sounds/button-29.mp3" preload="auto"></audio>
+<audio id="kingSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_b43a98175c.mp3?filename=correct-answer-3-117396.mp3" preload="auto"></audio>
+<audio id="victorySound" src="https://www.soundjay.com/human/sounds/applause-8.mp3" preload="auto"></audio>
+</head>
+<body>
+  <!-- Contenuti della pagina -->
+
+  <div id="auth-container">
+  <form id="auth-form">
+    <h3 id="formTitle">Registrazione</h3>
+    <label>Nome: <input type="text" id="name" required /></label>
+    <label>Email: <input type="email" id="email" required /></label>
+    <label>Password: <input type="password" id="password" required /></label>
+    
+    <button type="submit">Continua</button>
+    <div id="toggleAuth">Hai già un account? Fai login</div>
+  </form>
+</div>
+<div id="ai-difficulty-step" style="display:none; background:white; border-radius:12px; padding:20px 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; width: 320px;">
+  <h3>Scegli la difficoltà dell'IA</h3>
+  <label>
+    <select id="ai-difficulty">
+      <option value="Facile">Facile</option>
+      <option value="Medio">Medio</option>
+      <option value="Difficile">Difficile</option>
+    </select>
+  </label>
+  <button id="startGameBtn">Inizia Partita</button>
+</div>
+<div id="user-panel">
+    <h3 id="userWelcome"></h3>
+    <p><strong>Email:</strong> <span id="userEmail"></span></p>
+    <p><strong>Vittorie:</strong> <span id="userWins">0</span></p>
+    <h4>Storico Vittorie</h4>
+    <label>Filtro Difficoltà:
+      <select id="difficultyFilter">
+        <option value="Tutte">Tutte</option>
+        <option value="Facile">Facile</option>
+        <option value="Medio">Medio</option>
+        <option value="Difficile">Difficile</option>
+      </select>
+    </label>
+    <ul id="userHistory" style="text-align:left; padding-left: 20px;"></ul>
+  </div>
+  <button id="logoutBtn" style="display:none; background-color:#c62828; margin-top: 10px;">Logout</button>
+  <button id="newGameBtn" style="display:none; background-color:#00796b; color:white; margin-top: 10px;">Nuova Partita</button>
+<div class="victory-message" id="victoryMessage"></div>
+<button id="copyCodeBtn" style="display:none; margin-top:10px;">Copia Codice</button>
+
+  <!-- Script alla fine del body -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const scriptURL = 'https://script.google.com/macros/s/AKfycbzrv1DI-g_EO3R998zItmh4IPG98CGphFxosjyYN-t9CmY1nODNg8D37GV18PJYeZtT/exec';
+      const authContainer = document.getElementById('auth-container');
+      const userPanel = document.getElementById('user-panel');
+      const board = document.getElementById('board');
+      const victoryMessage = document.getElementById('victoryMessage');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const form = document.getElementById('auth-form');
+      const toggleAuth = document.getElementById('toggleAuth');
+      const difficultyContainer = document.getElementById('difficulty-container');
+      let userData = {};
+      let isLogin = false;
+
+      // AUTOLOGIN
+      const storedUser = localStorage.getItem('userData');
+      if (storedUser) {
+        userData = JSON.parse(storedUser);
+        authContainer.style.display = 'none';
+        board.style.display = 'grid';
+        logoutBtn.style.display = 'block';
+        document.getElementById('newGameBtn').style.display = 'block';
+        createBoard();
+        showUserPanel();
+      }
+
+      // TOGGLE LOGIN/REG
+      toggleAuth.addEventListener('click', () => {
+        isLogin = !isLogin;
+        document.getElementById('formTitle').innerText = isLogin ? 'Login' : 'Registrazione';
+        difficultyContainer.style.display = isLogin ? 'none' : 'block';
+        toggleAuth.innerText = isLogin ? 'Non hai un account? Registrati' : 'Hai già un account? Fai login';
+      });
+
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const difficulty = document.getElementById('difficulty').value;
+        userData = { name, email, password, difficulty };
+
+        if (isLogin) {
+          const res = await fetch(scriptURL);
+          const data = await res.json();
+          const headers = data[0];
+          const emailIndex = headers.indexOf('Email');
+          const passIndex = headers.indexOf('Password');
+          const nameIndex = headers.indexOf('Nome');
+          const difficultyIndex = headers.indexOf('Difficoltà');
+          let loginSuccess = false;
+
+          for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (row[emailIndex] === email && row[passIndex] === password) {
+              userData = {
+                name: row[nameIndex],
+                email: row[emailIndex],
+                password: row[passIndex],
+                difficulty: row[difficultyIndex]
+              };
+              loginSuccess = true;
+              break;
+            }
+          }
+
+          if (!loginSuccess) {
+            alert('Email o password errati.');
+            return;
+          }
+        } else {
+          const res = await fetch(scriptURL);
+          const data = await res.json();
+          const headers = data[0];
+          const emailIndex = headers.indexOf('Email');
+          let exists = false;
+          for (let i = 1; i < data.length; i++) {
+            if (data[i][emailIndex] === email) {
+              exists = true;
+              break;
+            }
+          }
+          if (exists) return alert('Email già registrata. Fai login.');
+          const response = await fetch(scriptURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userData)
+          });
+          const text = await response.text();
+          console.log('Risposta dalla registrazione:', text);
+        }
+
+        localStorage.setItem('userData', JSON.stringify(userData));
+        authContainer.style.display = 'none';
+        document.getElementById('ai-difficulty-step').style.display = 'block';
+        logoutBtn.style.display = 'block';
+        createBoard();
+        showUserPanel();
+      });
+
+      document.getElementById('startGameBtn').addEventListener('click', () => {
+        const aiDifficulty = document.getElementById('ai-difficulty').value;
+        userData.difficulty = aiDifficulty;
+        localStorage.setItem('userData', JSON.stringify(userData));
+        document.getElementById('ai-difficulty-step').style.display = 'none';
+        board.style.display = 'grid';
+        logoutBtn.style.display = 'block';
+        document.getElementById('newGameBtn').style.display = 'block';
+        createBoard();
+        showUserPanel();
+      });
+
+      document.getElementById('newGameBtn').addEventListener('click', () => {
+        victoryMessage.innerText = '';
+        document.getElementById('copyCodeBtn').style.display = 'none';
+        board.innerHTML = '';
+        createBoard();
+      });
+
+      logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('userData');
+        location.reload();
+      });
+
+      function showUserPanel() {
+        userPanel.style.display = 'block';
+        document.getElementById('userWelcome').innerText = `Benvenuto, ${userData.name}!`;
+        document.getElementById('userEmail').innerText = userData.email;
+
+        fetch(scriptURL)
+          .then(res => res.json())
+          .then(data => {
+            const headers = data[0];
+            const emailIndex = headers.indexOf('Email');
+            const vittoriaIndex = headers.indexOf('Vittoria');
+            const codiceIndex = headers.indexOf('Codice Vittoria');
+            const dataIndex = headers.indexOf('Data Vittoria');
+            const diffIndex = headers.indexOf('Difficoltà');
+
+            let winCount = 0;
+            const selectedDiff = document.getElementById('difficultyFilter').value;
+            const historyList = document.getElementById('userHistory');
+            historyList.innerHTML = '';
+
+            for (let i = 1; i < data.length; i++) {
+              const row = data[i];
+              if (row[emailIndex] === userData.email && row[vittoriaIndex] === 'Sì') {
+                if (selectedDiff !== 'Tutte' && row[diffIndex] !== selectedDiff) continue;
+                winCount++;
+                const li = document.createElement('li');
+                li.textContent = `${row[dataIndex]} - Codice: ${row[codiceIndex]}`;
+                historyList.appendChild(li);
+              }
+            }
+            document.getElementById('userWins').innerText = winCount;
+            document.getElementById('difficultyFilter').addEventListener('change', showUserPanel);
+          });
+      }
+    });
+  // Funzione per creare la scacchiera con IA
+function createBoard() {
+  board.innerHTML = '';
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const cell = document.createElement('div');
+      cell.classList.add('cell');
+      cell.classList.add((x + y) % 2 === 0 ? 'white' : 'blue');
+      cell.dataset.x = x;
+      cell.dataset.y = y;
+      board.appendChild(cell);
+
+      if ((x + y) % 2 !== 0) {
+        if (y < 3) createPiece(cell, 'black');
+        if (y > 4) createPiece(cell, 'white');
+      }
+    }
+  }
+  setupGameplay();
+}
+
+let selectedPiece = null;
+let selectedPiece = null;
+let turn = 'white';
+
+function createPiece(cell, color) {
+  const piece = document.createElement('div');
+  piece.classList.add('piece', `${color}-piece`);
+  piece.dataset.color = color;
+  piece.addEventListener('click', selectPiece);
+  cell.appendChild(piece);
+}
+
+function selectPiece(e) {
+  if (e.target.dataset.color !== turn) return;
+  clearHighlights();
+  selectedPiece = e.target;
+  showMoves(selectedPiece);
+}
+
+function showMoves(piece) {
+  const fromX = +piece.parentElement.dataset.x;
+  const fromY = +piece.parentElement.dataset.y;
+  const color = piece.dataset.color;
+  const directions = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
+
+  directions.forEach(([dx, dy]) => {
+    if ((color === 'white' && dy > 0) || (color === 'black' && dy < 0)) return;
+    const newX = fromX + dx;
+    const newY = fromY + dy;
+    const cell = getCell(newX, newY);
+    if (cell && cell.children.length === 0) {
+      cell.classList.add('highlight');
+    }
+
+    const midCell = getCell(fromX + dx, fromY + dy);
+    const jumpCell = getCell(fromX + 2 * dx, fromY + 2 * dy);
+    if (midCell && jumpCell && midCell.children.length && jumpCell.children.length === 0) {
+      if (midCell.firstChild.dataset.color !== color) {
+        jumpCell.classList.add('highlight');
+      }
+    }
+  });
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.cell').forEach(c => c.classList.remove('highlight'));
+}
+
+function getCell(x, y) {
+  return document.querySelector(`.cell[data-x='${x}'][data-y='${y}']`);
+}
+
+function setupGameplay() {
+  board.addEventListener('click', handleMove);
+}
+
+function handleMove(e) {
+  if (!selectedPiece || !e.target.classList.contains('cell')) return;
+  if (!e.target.classList.contains('highlight')) return;
+
+  const fromX = +selectedPiece.parentElement.dataset.x;
+  const fromY = +selectedPiece.parentElement.dataset.y;
+  const toX = +e.target.dataset.x;
+  const toY = +e.target.dataset.y;
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+
+  const jumpedX = fromX + dx / 2;
+  const jumpedY = fromY + dy / 2;
+
+  if (Math.abs(dx) === 2 && Math.abs(dy) === 2) {
+    const jumpedCell = getCell(jumpedX, jumpedY);
+    jumpedCell.innerHTML = '';
+    document.getElementById('captureSound').play();
+  }
+
+  e.target.appendChild(selectedPiece);
+  clearHighlights();
+  selectedPiece = null;
+  turn = 'black';
+  if (checkVictory('white')) {
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    victoryMessage.innerText = `Hai vinto! Il tuo codice sconto è: ${code}`;
+    const copyBtn = document.getElementById('copyCodeBtn');
+    copyBtn.style.display = 'block';
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(code).then(() => {
+        copyBtn.innerText = 'Copiato!';
+        setTimeout(() => (copyBtn.innerText = 'Copia Codice'), 2000);
+      });
+    };
+    fetch(scriptURL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...userData,
+        vittoria: 'Sì',
+        codice: code
+      })
+    });
+    document.getElementById('victorySound').play();
+    return;
+  }
+  setTimeout(aiMove, 500);
+}
+
+function aiMove() {
+  const difficulty = userData.difficulty || 'Facile';
+  const allMoves = [];
+  document.querySelectorAll('.black-piece').forEach(piece => {
+    const fromX = +piece.parentElement.dataset.x;
+    const fromY = +piece.parentElement.dataset.y;
+    directions.forEach(([dx, dy]) => {
+      const midX = fromX + dx;
+      const midY = fromY + dy;
+      const toX = fromX + dx * 2;
+      const toY = fromY + dy * 2;
+      const midCell = getCell(midX, midY);
+      const targetCell = getCell(toX, toY);
+      if (
+        midCell && targetCell &&
+        midCell.children.length &&
+        midCell.firstChild.dataset.color === 'white' &&
+        targetCell.children.length === 0
+      ) {
+        allMoves.push({ piece, toX, toY, capture: true, midCell });
+      } else {
+        const cell = getCell(fromX + dx, fromY + dy);
+        if (cell && cell.children.length === 0) {
+          allMoves.push({ piece, toX: fromX + dx, toY: fromY + dy });
+        }
+      }
+    });
+  });
+      }
+    });
+  });
+
+  if (allMoves.length === 0) return;
+
+  let move;
+  if (difficulty === 'Facile') {
+    move = allMoves[Math.floor(Math.random() * allMoves.length)];
+  } else {
+    if (difficulty === 'Medio') {
+    // Scegli una mossa che porta a una possibile cattura futura (semplificato)
+    move = allMoves.find(m => m.toY === 7 || m.toY === 0) || allMoves[0];
+  } else if (difficulty === 'Difficile') {
+    // Cerca la mossa che consente la cattura subito dopo
+    move = allMoves.find(m => {
+      const cell = getCell(m.toX + 1, m.toY + 1);
+      return cell && cell.children.length === 0;
+    }) || allMoves[0];
+  } else {
+    move = allMoves[Math.floor(Math.random() * allMoves.length)];
+  }
+  }
+
+  const { piece, toX, toY } = move;
+  const targetCell = getCell(toX, toY);
+  if (targetCell) {
+    targetCell.appendChild(piece);
+    if ((toY === 7) && piece.dataset.color === 'black') {
+      piece.classList.add('king');
+      document.getElementById('kingSound').play();
+    }
+    if (move.capture && move.midCell) move.midCell.innerHTML = '';
+  }
+
+  turn = 'white';
+}
+function checkVictory(player) {
+  const pieces = document.querySelectorAll(`.${player}-piece`);
+  return pieces.length === 0;
+}
+</script>
+</body>
+</html>
